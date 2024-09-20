@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Voice Assistant</title>
+</head>
+<style>
+    body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+.container {
+    text-align: center;
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+h1 {
+    font-size: 2rem;
+    color: #333;
+}
+
+.mic-wrapper {
+    margin-top: 20px;
+}
+
+.mic-btn {
+    background-color: #008CBA;
+    color: white;
+    font-size: 1.5rem;
+    padding: 15px 30px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    outline: none;
+}
+
+.mic-btn:active {
+    background-color: #005f73;
+}
+
+#conversation-history {
+    margin-top: 20px;
+    font-size: 1rem;
+    color: #444;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.history-entry {
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+.user-input {
+    font-weight: bold;
+    color: #005f73;
+}
+
+.ai-response {
+    margin-top: 5px;
+    color: #333;
+}
+</style>
+<body>
+    <div class="container">
+        <h1>AI Voice Assistant</h1>
+        <div class="mic-wrapper">
+            <button id="start-record-btn" class="mic-btn">
+                🎙️ Speak Now
+            </button>
+        </div>
+        <div id="response-text"></div>
+        <div id="conversation-history">
+<!-- dynamically conversation history between user and Ai here-->
+
+        </div>
+    </div>
+</body>
+<script>
+    const startRecordBtn = document.getElementById("start-record-btn");
+    const responseText = document.getElementById("response-text");
+    const conversationHistory = document.getElementById("conversation-history");
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+
+    recognition.onstart = function() {
+        responseText.innerHTML = 'Listening...';
+    };
+
+    recognition.onspeechend = function() {
+        recognition.stop();
+        responseText.innerHTML = '';  // Optionally, clear the "Listening..." text
+    };
+
+    recognition.onresult = function(event) {
+        const userInput = event.results[0][0].transcript;
+        responseText.innerHTML = `User: ${userInput}`;
+
+        fetch("/process_voice", {
+            method: "POST",
+            headers: {
+                'Content-Type': "application/json"
+            },
+            body: JSON.stringify({ user_input: userInput })
+        })
+        .then(response => response.json())
+        .then(data => {
+            const aiResponse = data.response;
+            responseText.innerHTML = `AI Response: ${aiResponse}`;  // Added colon
+            updateConversationHistory(data.conversation_history);
+            speakResponse(aiResponse);
+        })
+        .catch(error => {
+            responseText.innerHTML = 'Error processing request.';
+        });
+    };
+
+    startRecordBtn.addEventListener("click", () => {
+        responseText.innerHTML = 'Listening...';  // Immediately show "Listening..."
+        setTimeout(() => {
+            recognition.start();
+        }, 100);  // Small delay to allow the browser to update the UI
+    });
+
+    // Function for updating conversation history
+    function updateConversationHistory(history) {
+        conversationHistory.innerHTML = '';
+        history.forEach(entry => {
+            const historyEntry = document.createElement("div");
+            historyEntry.classList.add('history-entry');
+
+            const userInput = document.createElement('div');
+            userInput.classList.add('user-input');
+            userInput.innerHTML = `YOU: ${entry.user}`;
+
+            const aiResponse = document.createElement('div');
+            aiResponse.classList.add('ai-response');
+            aiResponse.innerHTML = `AI: ${entry.ai}`;
+
+            historyEntry.appendChild(userInput);
+            historyEntry.appendChild(aiResponse);
+            conversationHistory.appendChild(historyEntry);
+        });
+    }
+
+    function speakResponse(text) {
+        const synth = window.speechSynthesis;
+        const utterance = new SpeechSynthesisUtterance(text);
+        synth.speak(utterance);
+    }
+
+
+</script>
+</html>
